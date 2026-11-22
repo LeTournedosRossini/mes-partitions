@@ -25,7 +25,8 @@ li a:first-child{font-size:1.05rem}
 <input id="q" type="search" placeholder="Rechercher / Search" hidden>
 <div id="list"></div>
 <script>
-// Lists the .html pages of this repository (public GitHub API, no token) and links to each one.
+// Lists the pages (.html), the songs (.scorsaire) and the recueils (.scorsaire-recueil) of this repository (public GitHub API, no token) and links to each one.
+  // A song or a recueil opens in the Lecteur of Scorsaire (the address of the file is read by it); a pupil whose device already keeps another recueil is asked what to do.
 (async () => {
   const host = location.hostname, path = location.pathname.split('/').filter(Boolean);
   const m = host.match(/^(.+)\.github\.io$/);
@@ -39,10 +40,14 @@ li a:first-child{font-size:1.05rem}
     tree = (await r.json()).tree;
   } catch (e) { list.textContent = 'Liste indisponible pour le moment. / List unavailable right now.'; return; }
   const base = repo === `${owner}.github.io` ? `https://${host}/` : `https://${host}/${repo}/`;
-  const pages = tree.filter((f) => f.type === 'blob' && /\.html?$/i.test(f.path) && !/(^|\/)(index|404)\.html?$/i.test(f.path)).map((f) => {
+  const LECTEUR = 'https://letournedosrossini.github.io/scorsaire-lecteur/';
+  const enc = (p) => p.split('/').map(encodeURIComponent).join('/');
+  const pages = tree.filter((f) => f.type === 'blob' && (/\.html?$/i.test(f.path) && !/(^|\/)(index|404)\.html?$/i.test(f.path) || /\.scorsaire(-recueil)?$/i.test(f.path))).map((f) => {
     const parts = f.path.split('/'), file = parts.pop();
-    const title = decodeURIComponent(file).replace(/\.html?$/i, '').replace(/-(synchro|page|video)$/i, '').replace(/[-_]+/g, ' ');
-    return { dir: parts, title, kind: (file.match(/-(synchro|page|video)\.html?$/i) || [])[1] || '', url: base + f.path.split('/').map(encodeURIComponent).join('/'), edit: `https://github.com/${owner}/${repo}/blob/main/${f.path}` };
+    const recueil = /\.scorsaire-recueil$/i.test(file), song = !recueil && /\.scorsaire$/i.test(file);
+    const title = decodeURIComponent(file).replace(/\.(html?|scorsaire-recueil|scorsaire)$/i, '').replace(/-(synchro|page|video)$/i, '').replace(/[-_]+/g, ' ');
+    const url = recueil || song ? `${LECTEUR}?file=${encodeURIComponent(`https://raw.githubusercontent.com/${owner}/${repo}/main/${enc(f.path)}`)}` : base + enc(f.path);
+    return { dir: parts, title, kind: recueil ? 'recueil' : song ? 'partition' : (file.match(/-(synchro|page|video)\.html?$/i) || [])[1] || '', url, edit: `https://github.com/${owner}/${repo}/blob/main/${f.path}` };
   }).sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }));
   if (!pages.length) return;
   hint.hidden = true; q.hidden = false;
